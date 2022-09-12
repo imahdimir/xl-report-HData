@@ -9,6 +9,7 @@ import pandas as pd
 from mirutil.df_utils import read_data_according_to_type as read_data
 from mirutil.pathes import get_all_subdirs
 from mirutil.pathes import has_subdir
+from mirutil.df_utils import save_df_as_a_nice_xl as sxl
 
 
 class Params :
@@ -27,33 +28,33 @@ class ColName :
 c = ColName()
 
 class MetaCol :
-    tcol = 'tcol'
+    dcs = 'dcs'
+    freq = 'freq'
     start = 'start'
     end = 'end'
+    tcol = 'tcol'
     cols = 'cols'
 
 mc = MetaCol()
+
+class FinalCol :
+    foln = 'Folder'
+    dsc = 'Description'
+    freq = 'Frequency'
+    start = 'Start Date'
+    end = 'End Date'
+    cols = 'Columns'
+
+fc = FinalCol()
 
 def list_dir(dirp: Path) :
     lo = list(dirp.glob('*'))
     lo = [i for i in lo if i.name != '.DS_Store']
     return lo
 
-def update_meta(mp , dp) :
-    with open(mp , 'r') as f :
-        js = json.load(f)
-
-    df = read_data(dp)
-
-    if js[mc.tcol] is not None :
-        if js[mc.tcol] in df.columns :
-            js[mc.start] = df[js[mc.tcol]].min()
-            js[mc.end] = df[js[mc.tcol]].max()
-
-    js[mc.cols] = list(df.columns)
-
-    with open(mp , 'w') as f :
-        json.dump(js , f , indent = 4)
+def read_meta(mp) :
+    with open(mp) as f :
+        return json.load(f)
 
 def main() :
     pass
@@ -79,7 +80,29 @@ def main() :
             )
 
     ##
-    _ = df.apply(lambda x : update_meta(x[c.mp] , x[c.dp]) , axis = 1)
+    df1 = df.apply(
+            lambda x : read_meta(x[c.mp]) , axis = 1 , result_type = 'expand'
+            )
+    ##
+    df = df.join(df1)
+    ##
+    df = df[[c.path , mc.dcs , mc.freq , mc.start , mc.end , mc.cols]]
+    ##
+    df[fc.foln] = df[c.path].apply(lambda x : x.relative_to(p.root_dir))
+    ##
+    df = df[[fc.foln , mc.dcs , mc.freq , mc.start , mc.end , mc.cols]]
+    ##
+    ren = {
+            mc.dcs   : fc.dsc ,
+            mc.freq  : fc.freq ,
+            mc.start : fc.start ,
+            mc.end   : fc.end ,
+            mc.cols  : fc.cols ,
+            }
+    df = df.rename(columns = ren)
+
+    ##
+    sxl(df , 'rep.xlsx')
 
     ##
 
